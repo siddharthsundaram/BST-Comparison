@@ -11,7 +11,7 @@ var data_workers *int
 var comp_workers *int
 var input_file *string
 var trees [] *TreeNode
-var hash_map map[int]int
+var hash_map map[int][]int
 
 func thread_hash(idx int, hash int, hashes []int, barrier *sync.WaitGroup) {
 	defer barrier.Done()
@@ -19,15 +19,29 @@ func thread_hash(idx int, hash int, hashes []int, barrier *sync.WaitGroup) {
 	hashes[idx] = hash
 }
 
+func serial_hash(hashes []int) {
+	for i := range trees {
+		var hash int = 1
+		trees[i].ComputeHash(&hash)
+		hashes[i] = hash
+	}
+}
+
+func serial_hash_group(hashes []int) {
+	for i := range hashes {
+		_, ok := hash_map[hashes[i]]
+		if ok == true {
+			hash_map[hashes[i]] = append(hash_map[hashes[i]], i)
+		} else {
+			hash_map[hashes[i]] = []int{i}
+		}
+	}
+}
+
 func main() {
 	ParseCLI()
-	// PrintArgs()
 
-	if *data_workers > 0 {
-		hash_map = make(map[int]int)
-	}
-
-	// Populates trees slice
+	// Populate trees slice
 	ReadFile()
 	hashes := make([]int, len(trees))
 
@@ -47,11 +61,7 @@ func main() {
 	} else {
 
 		// Serial
-		for i := range trees {
-			var hash int = 1
-			trees[i].ComputeHash(&hash)
-			hashes[i] = hash
-		}
+		serial_hash(hashes)
 	}
 
 	elapsed := time.Since(start)
@@ -60,4 +70,20 @@ func main() {
 	// for i := range hashes {
 	// 	fmt.Println(hashes[i])
 	// }
+
+	// Hash group time
+	start = time.Now()
+	if *data_workers > 0 {
+		hash_map = make(map[int][]int)
+		serial_hash_group(hashes)
+	}
+
+	// Compare tree time
+	// start = time.Now()
+	// if *comp_workers > 0 {
+
+	// }
+
+	elapsed = time.Since(start)
+	fmt.Printf("hashGroupTime: %.10f\n", elapsed.Seconds())
 }
