@@ -78,12 +78,13 @@ func main() {
 		serial_hash_group(hashes)
 	}
 
+	elapsed = time.Since(start)
+	fmt.Printf("hashGroupTime: %.10f\n", elapsed.Seconds())
+
 	// Compare tree time
 	// start = time.Now()
 	// if *comp_workers > 0 {
 
 	// }
 
-	elapsed = time.Since(start)
-	fmt.Printf("hashGroupTime: %.10f\n", elapsed.Seconds())
 }
