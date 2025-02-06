@@ -10,10 +10,11 @@ var hash_workers *int
 var data_workers *int
 var comp_workers *int
 var input_file *string
-var trees [] *TreeNode						// Slice of TreeNode ptrs
-var hash_map map[int] []int					// Map of int -> slice of ints
-var identical_trees [] map[int] struct{}	// Slice of sets (implemented thru maps)
-var map_lock sync.Mutex						// Mutex for hash map synchronization
+var trees [] *TreeNode							// Slice of TreeNode ptrs
+var hash_map map[int] []int						// Map of int -> slice of ints
+var identical_trees [][] bool
+var identical_tree_groups [] map[int] struct{}	// Slice of sets (implemented thru maps)
+var map_lock sync.Mutex							// Mutex for hash map synchronization
 var proceed sync.Cond
 
 type Pair struct {
@@ -111,6 +112,16 @@ func print_hash_groups() {
 	}
 }
 
+func print_identical_matrix() {
+	for i := range identical_trees {
+		for j := range identical_trees {
+			fmt.Print(identical_trees[i][j], " ")
+		}
+
+		fmt.Println()
+	}
+}
+
 func main() {
 	ParseCLI()
 
@@ -127,6 +138,11 @@ func main() {
 	hash_map = make(map[int] []int)
 	var start time.Time
 	var hash_time, hash_group_time time.Duration
+	n := len(trees)
+	identical_trees = make([][]bool, n)
+	for i:= range identical_trees {
+		identical_trees[i] = make([]bool, n)
+	}
 
 	if *hash_workers == 1 && *data_workers == 1 {
 
@@ -182,72 +198,32 @@ func main() {
 
 	fmt.Printf("hashTime: %.10f\n", hash_time.Seconds())
 	fmt.Printf("hashGroupTime: %.10f\n", hash_group_time.Seconds())
-	// print_hash_groups()
+	print_hash_groups()
 
-	// // Hash time
-	// start := time.Now()
-	// if *hash_workers > 1 {
-
-	// 	// Parallel
-	// 	var barrier sync.WaitGroup
-
-	// 	for i := range trees {
-	// 		barrier.Add(1)
-	// 		go thread_hash(i, 1, hashes, &barrier)
-	// 	}
-
-	// 	barrier.Wait()
-	// } else {
-
-	// 	// Serial
-	// 	serial_hash(hashes)
-	// }
-
-	// elapsed := time.Since(start)
-	// fmt.Printf("hashTime: %.10f\n", elapsed.Seconds())
-
-	// for i := range hashes {
-	// 	fmt.Println(hashes[i])
-	// }
-
-	// if *data_workers > 0 {
-	// 	hash_map = make(map[int] []int)
-	// }
-	
-	// // Hash group time
-	// start = time.Now()
-	// if *data_workers > 1 {
-
-	// 	// Parallel
-	// } else {
-		
-	// 	// Serial
-	// 	serial_hash_group(hashes)
-	// }
-
-	// elapsed = time.Since(start)
-	// fmt.Printf("hashGroupTime: %.10f\n", elapsed.Seconds())
-	// print_hash_groups()
-
-	// // Compare tree time
-	// start = time.Now()
-	// if *comp_workers > 0 {
+	// Compare tree time
+	start = time.Now()
+	if *comp_workers > 0 {
 
 		// TODO: Efficiently determine identical trees, including edge case
 		// where there are multiple identical groups in the same hash group
 		
 		// Serial
-		// for _, val := range hash_map {
-		// 	if len(val) > 1 {
-		// 		same := make(map[int] struct{})
-		// 		same[trees[0]] = struct{}{}
-		// 		for i := 0; i < len(val) - 1; i++ {
-		// 			for j := i + 1; j < len(val); j++ {
+		for _, val := range hash_map {
+				// same := make(map[int] struct{})
+				// same[trees[0]] = struct{}{}
+			for i := 0; i < len(val); i++ {
 
-		// 			}
-		// 		}
-		// 	}
-		// }
-	// }
+				// Set equivalence to itself in adj matrix
+				identical_trees[val[i]][val[i]] = true
+
+				// One goroutine per comparison
+				for j := i + 1; j < len(val); j++ {
+					go CompareTrees(val[i], val[j])
+				}
+			}
+		}
+
+		print_identical_matrix()
+	}
 
 }

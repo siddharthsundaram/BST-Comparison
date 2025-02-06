@@ -41,6 +41,36 @@ func (node *TreeNode) ComputeHash(hash *int) {
 	node.Right.ComputeHash(hash)
 }
 
+func CompareTrees(idx1 int, idx2 int) {
+	node := trees[idx1]
+	other := trees[idx2]
+	this_slice := []int{}
+	other_slice := []int{}
+	InOrderTraversal(node, &this_slice)
+	InOrderTraversal(other, &other_slice)
+
+	if len(this_slice) != len(other_slice) {
+		return
+	}
+
+	for i := range this_slice {
+		if this_slice[i] != other_slice[i] {
+			return
+		}
+	}
+
+	identical_trees[idx1][idx2] = true
+	identical_trees[idx2][idx1] = true
+}
+
+func InOrderTraversal(node *TreeNode, res *[] int) {
+	if node != nil {
+		InOrderTraversal(node.Left, res)
+		*res = append(*res, node.Val)
+		InOrderTraversal(node.Right, res)
+	}
+}
+
 func (node *TreeNode) PrintInOrderTraversal() {
 	if node == nil {
 		return
