@@ -162,13 +162,13 @@ func print_identical_groups() {
 		if len(group) > 1 {
 			fmt.Print("group", count, ": ")
 			for j := range group {
-				fmt.Print(j, " ")
+				fmt.Print(group[j], " ")
 			}
 
 			count += 1
+			fmt.Println()
 		}
 
-		fmt.Println()
 	}
 }
 
