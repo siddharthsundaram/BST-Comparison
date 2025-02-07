@@ -12,16 +12,19 @@ var comp_workers *int
 var input_file *string
 var trees [] *TreeNode							// Slice of TreeNode ptrs
 var hash_map map[int] []int						// Map of int -> slice of ints
-var identical_trees [][] bool
+var identical_trees [][] bool					// Adjacency matrix to store BST equivalency
 var identical_tree_groups [] map[int] struct{}	// Slice of sets (implemented thru maps)
 var map_lock sync.Mutex							// Mutex for hash map synchronization
-var proceed sync.Cond
+var proceed sync.Cond							// Condition for precise timing
+var buf *ConcurrentBuffer
 
+// Used in parallelization to send hashing info through channel
 type Pair struct {
 	Hash int
 	Idx int
 } 
 
+// Function for goroutines to compute BST hashes in parallel
 func thread_hash(idx int, hashes []int, finished_barrier *sync.WaitGroup, hash_barrier *sync.WaitGroup, ch chan Pair, helper bool) {
 	defer finished_barrier.Done()
 
@@ -64,9 +67,8 @@ func thread_hash(idx int, hashes []int, finished_barrier *sync.WaitGroup, hash_b
 	}
 }
 
+// Groups hashes and signal main thread after completion
 func central_hash_group(ch chan Pair, hash_barrier *sync.WaitGroup) {
-
-	// Group hashes and signal main thread after completion
 	defer hash_barrier.Done()
 	for pair := range ch {
 		hash := pair.Hash
@@ -81,6 +83,18 @@ func central_hash_group(ch chan Pair, hash_barrier *sync.WaitGroup) {
 	}
 }
 
+func thread_compare() {
+	for {
+		work, ok := buf.dequeue()
+		if !ok {
+			return
+		}
+
+		CompareTrees(work.idx1, work.idx2)
+	}
+}
+
+// Serial hash computing wrapper function
 func serial_hash(hashes []int) {
 	for i := range trees {
 		var hash int = 1
@@ -89,6 +103,7 @@ func serial_hash(hashes []int) {
 	}
 }
 
+// Serial hash grouping function
 func serial_hash_group(hashes []int) {
 	for i := range hashes {
 		_, ok := hash_map[hashes[i]]
@@ -100,6 +115,7 @@ func serial_hash_group(hashes []int) {
 	}
 }
 
+// Function for printing the hash groups
 func print_hash_groups() {
 	for key, val := range hash_map {
 		if len(val) > 1 {
@@ -112,6 +128,7 @@ func print_hash_groups() {
 	}
 }
 
+// Function for printing equivalence adjacency matrix (for debugging)
 func print_identical_matrix() {
 	for i := range identical_trees {
 		for j := range identical_trees {
@@ -200,30 +217,50 @@ func main() {
 	fmt.Printf("hashGroupTime: %.10f\n", hash_group_time.Seconds())
 	print_hash_groups()
 
-	// Compare tree time
-	start = time.Now()
-	if *comp_workers > 0 {
+	// Compare BSTs
+	// Serial
+	if *comp_workers == 1 {
+		start = time.Now()
 
-		// TODO: Efficiently determine identical trees, including edge case
-		// where there are multiple identical groups in the same hash group
-		
-		// Serial
 		for _, val := range hash_map {
-				// same := make(map[int] struct{})
-				// same[trees[0]] = struct{}{}
 			for i := 0; i < len(val); i++ {
 
 				// Set equivalence to itself in adj matrix
 				identical_trees[val[i]][val[i]] = true
 
-				// One goroutine per comparison
 				for j := i + 1; j < len(val); j++ {
-					go CompareTrees(val[i], val[j])
+					CompareTrees(val[i], val[j])
 				}
 			}
 		}
 
-		print_identical_matrix()
+	// Parallel
+	} else if *comp_workers > 1 {
+		start = time.Now()
+		buf = NewConcurrentBuffer(*comp_workers)
+		for i := 0; i < *comp_workers; i++ {
+			go thread_compare()
+		}
+
+		for _, val := range hash_map {
+			for i := 0; i < len(val); i++ {
+
+				// Set equivalence to itself in adj matrix
+				identical_trees[val[i]][val[i]] = true
+
+				for j := i + 1; j < len(val); j++ {
+
+					// Implementation #1: One goroutine per comparison
+					// go CompareTrees(val[i], val[j])
+
+					// Implementation #2: Main thread puts work in concurrent buffer for goroutines to consume and perform
+					buf.enqueue(val[i], val[j])
+				}
+			}
+		}
+
+		buf.Close()
 	}
 
+	print_identical_matrix()
 }
