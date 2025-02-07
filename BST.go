@@ -83,7 +83,8 @@ func central_hash_group(ch chan Pair, hash_barrier *sync.WaitGroup) {
 	}
 }
 
-func thread_compare() {
+func thread_compare(comp_barrier *sync.WaitGroup) {
+	defer comp_barrier.Done()
 	for {
 		work, ok := buf.dequeue()
 		if !ok {
@@ -139,6 +140,38 @@ func print_identical_matrix() {
 	}
 }
 
+func print_identical_groups() {
+	seen := make(map[int]struct{})
+	count := 0
+
+	for i := range identical_trees {
+		_, ok := seen[i]
+		if ok {
+			continue
+		}
+
+		group := [] int {i}
+		seen[i] = struct{}{}
+		for j := i + 1; j < len(identical_trees); j++ {
+			if identical_trees[i][j] == true {
+				group = append(group, j)
+				seen[j] = struct{}{}
+			}
+		}
+
+		if len(group) > 1 {
+			fmt.Print("group", count, ": ")
+			for j := range group {
+				fmt.Print(j, " ")
+			}
+
+			count += 1
+		}
+
+		fmt.Println()
+	}
+}
+
 func main() {
 	ParseCLI()
 
@@ -154,7 +187,7 @@ func main() {
 	ch := make(chan Pair)
 	hash_map = make(map[int] []int)
 	var start time.Time
-	var hash_time, hash_group_time time.Duration
+	var hash_time, hash_group_time, comp_time time.Duration
 	n := len(trees)
 	identical_trees = make([][]bool, n)
 	for i:= range identical_trees {
@@ -234,12 +267,16 @@ func main() {
 			}
 		}
 
+		comp_time = time.Since(start)
+
 	// Parallel
 	} else if *comp_workers > 1 {
 		start = time.Now()
+		var comp_barrier sync.WaitGroup
 		buf = NewConcurrentBuffer(*comp_workers)
+		comp_barrier.Add(*comp_workers)
 		for i := 0; i < *comp_workers; i++ {
-			go thread_compare()
+			go thread_compare(&comp_barrier)
 		}
 
 		for _, val := range hash_map {
@@ -260,7 +297,11 @@ func main() {
 		}
 
 		buf.Close()
+		comp_barrier.Wait()
+		comp_time = time.Since(start)
 	}
 
-	print_identical_matrix()
+	// print_identical_matrix()
+	fmt.Printf("compareTreeTime: %.10f\n", comp_time.Seconds())
+	print_identical_groups()
 }
