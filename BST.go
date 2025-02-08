@@ -140,6 +140,7 @@ func print_identical_matrix() {
 	}
 }
 
+// Function for printing identical tree groups after comparison
 func print_identical_groups() {
 	seen := make(map[int]struct{})
 	count := 0
@@ -301,7 +302,6 @@ func main() {
 		comp_time = time.Since(start)
 	}
 
-	// print_identical_matrix()
 	fmt.Printf("compareTreeTime: %.10f\n", comp_time.Seconds())
 	print_identical_groups()
 }
