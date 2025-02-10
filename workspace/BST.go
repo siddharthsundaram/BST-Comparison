@@ -45,8 +45,8 @@ func thread_hash(idx int, hashes []int, finished_barrier *sync.WaitGroup, hash_b
 	if helper == false {
 
 		// Inform main thread that all hashes have been computed and block until hash computation time is recorded
-		hash_barrier.Done()
 		proceed.L.Lock()
+		hash_barrier.Done()
 		proceed.Wait()
 		proceed.L.Unlock()
 
@@ -246,14 +246,14 @@ func main() {
 		hash_time = time.Since(start)
 		// proceed.L.Lock()					// Not sure if this locking is necessary, ask in OH
 		proceed.Broadcast()
-		// proceed.Unlock()
+		// proceed.L.Unlock()
 		finished_barrier.Wait()
 		hash_group_time = time.Since(start)
 	}
 
 	// fmt.Printf("hashTime: %.10f\n", hash_time.Seconds())
-	fmt.Printf("%.10f\n", hash_time.Seconds())
 	// fmt.Printf("hashGroupTime: %.10f\n", hash_group_time.Seconds())
+	fmt.Printf("%.10f\n", hash_group_time.Seconds())
 	// print_hash_groups()
 
 	// Compare BSTs
