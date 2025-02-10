@@ -195,6 +195,10 @@ func main() {
 		identical_trees[i] = make([]bool, n)
 	}
 
+	// First implementation of parallelizing hash computation
+	// *hash_workers = len(trees)
+	// fmt.Println(*hash_workers)
+
 	if *hash_workers == 1 && *data_workers == 1 {
 
 		// Serial hash computation
@@ -247,9 +251,10 @@ func main() {
 		hash_group_time = time.Since(start)
 	}
 
-	fmt.Printf("hashTime: %.10f\n", hash_time.Seconds())
-	fmt.Printf("hashGroupTime: %.10f\n", hash_group_time.Seconds())
-	print_hash_groups()
+	// fmt.Printf("hashTime: %.10f\n", hash_time.Seconds())
+	fmt.Printf("%.10f\n", hash_time.Seconds())
+	// fmt.Printf("hashGroupTime: %.10f\n", hash_group_time.Seconds())
+	// print_hash_groups()
 
 	// Compare BSTs
 	// Serial
@@ -302,6 +307,11 @@ func main() {
 		comp_time = time.Since(start)
 	}
 
-	fmt.Printf("compareTreeTime: %.10f\n", comp_time.Seconds())
-	print_identical_groups()
+	// fmt.Printf("compareTreeTime: %.10f\n", comp_time.Seconds())
+	// print_identical_groups()
+
+	temp := hash_time
+	temp = hash_group_time
+	temp = comp_time
+	comp_time = temp
 }
