@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"sort"
 )
 
 var hash_workers *int
@@ -83,6 +84,7 @@ func central_hash_group(ch chan Pair, hash_barrier *sync.WaitGroup) {
 	}
 }
 
+// Function for goroutines to compare two BSTs from the buffer
 func thread_compare(comp_barrier *sync.WaitGroup) {
 	defer comp_barrier.Done()
 	for {
@@ -93,6 +95,12 @@ func thread_compare(comp_barrier *sync.WaitGroup) {
 
 		CompareTrees(work.idx1, work.idx2)
 	}
+}
+
+// Wrapper for comparing BSTs
+func per_tree_compare(comp_barrier *sync.WaitGroup, idx1 int, idx2 int) {
+	defer comp_barrier.Done()
+	CompareTrees(idx1, idx2)
 }
 
 // Serial hash computing wrapper function
@@ -120,6 +128,7 @@ func serial_hash_group(hashes []int) {
 func print_hash_groups() {
 	for key, val := range hash_map {
 		if len(val) > 1 {
+			sort.Ints(val)
 			fmt.Print(key, ": ")
 			for j := range val {
 				fmt.Print(val[j], " ")
@@ -174,6 +183,7 @@ func print_identical_groups() {
 }
 
 func main() {
+	e2e_start := time.Now()
 	ParseCLI()
 
 	// Populate trees slice
@@ -199,7 +209,7 @@ func main() {
 	// *hash_workers = len(trees)
 	// fmt.Println(*hash_workers)
 
-	if *hash_workers == 1 && *data_workers == 1 {
+	if *hash_workers == 1 {
 
 		// Serial hash computation
 		start = time.Now()
@@ -207,15 +217,15 @@ func main() {
 		hash_time = time.Since(start)
 
 		// Serial hash grouping
-		serial_hash_group(hashes)
-		hash_group_time = time.Since(start)
+		if *data_workers == 1 {
+			serial_hash_group(hashes)
+			hash_group_time = time.Since(start)
+		}
 		
 	} else if *data_workers == 1 {
 
 		// Parallel hash computation with central manager to group hashes
 		start = time.Now()
-
-		// Assuming that goroutine must be spawned to group hashes rather than the main thread doing it
 		hash_barrier.Add(1)
 		go central_hash_group(ch, &hash_barrier)
 
@@ -252,8 +262,8 @@ func main() {
 	}
 
 	// fmt.Printf("hashTime: %.10f\n", hash_time.Seconds())
+	// fmt.Printf("%.10f\n", hash_time.Seconds())
 	// fmt.Printf("hashGroupTime: %.10f\n", hash_group_time.Seconds())
-	fmt.Printf("%.10f\n", hash_group_time.Seconds())
 	// print_hash_groups()
 
 	// Compare BSTs
@@ -294,7 +304,8 @@ func main() {
 				for j := i + 1; j < len(val); j++ {
 
 					// Implementation #1: One goroutine per comparison
-					// go CompareTrees(val[i], val[j])
+					// comp_barrier.Add(1)
+					// go per_tree_compare(&comp_barrier, val[i], val[j])
 
 					// Implementation #2: Main thread puts work in concurrent buffer for goroutines to consume and perform
 					buf.enqueue(val[i], val[j])
@@ -308,10 +319,16 @@ func main() {
 	}
 
 	// fmt.Printf("compareTreeTime: %.10f\n", comp_time.Seconds())
+	// fmt.Printf("%.10f\n", hash_time.Seconds())
+	// fmt.Printf("%.10f\n", hash_group_time.Seconds())
+	fmt.Printf("%.10f\n", comp_time.Seconds())
 	// print_identical_groups()
+	e2e_end := time.Since(e2e_start)
+	// fmt.Printf("e2eTime: %.10f\n", e2e_end.Seconds())
 
 	temp := hash_time
 	temp = hash_group_time
 	temp = comp_time
+	temp = e2e_end
 	comp_time = temp
 }
