@@ -207,7 +207,6 @@ func main() {
 
 	// First implementation of parallelizing hash computation
 	// *hash_workers = len(trees)
-	// fmt.Println(*hash_workers)
 
 	if *hash_workers == 1 {
 
@@ -254,17 +253,14 @@ func main() {
 
 		hash_barrier.Wait()
 		hash_time = time.Since(start)
-		// proceed.L.Lock()					// Not sure if this locking is necessary, ask in OH
 		proceed.Broadcast()
-		// proceed.L.Unlock()
 		finished_barrier.Wait()
 		hash_group_time = time.Since(start)
 	}
 
-	// fmt.Printf("hashTime: %.10f\n", hash_time.Seconds())
-	// fmt.Printf("%.10f\n", hash_time.Seconds())
-	// fmt.Printf("hashGroupTime: %.10f\n", hash_group_time.Seconds())
-	// print_hash_groups()
+	fmt.Printf("hashTime: %.10f\n", hash_time.Seconds())
+	fmt.Printf("hashGroupTime: %.10f\n", hash_group_time.Seconds())
+	print_hash_groups()
 
 	// Compare BSTs
 	// Serial
@@ -318,17 +314,8 @@ func main() {
 		comp_time = time.Since(start)
 	}
 
-	// fmt.Printf("compareTreeTime: %.10f\n", comp_time.Seconds())
-	// fmt.Printf("%.10f\n", hash_time.Seconds())
-	// fmt.Printf("%.10f\n", hash_group_time.Seconds())
-	fmt.Printf("%.10f\n", comp_time.Seconds())
-	// print_identical_groups()
+	fmt.Printf("compareTreeTime: %.10f\n", comp_time.Seconds())
+	print_identical_groups()
 	e2e_end := time.Since(e2e_start)
-	// fmt.Printf("e2eTime: %.10f\n", e2e_end.Seconds())
-
-	temp := hash_time
-	temp = hash_group_time
-	temp = comp_time
-	temp = e2e_end
-	comp_time = temp
+	fmt.Printf("e2eTime: %.10f\n", e2e_end.Seconds())
 }
