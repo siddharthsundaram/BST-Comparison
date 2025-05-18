@@ -11,7 +11,7 @@ run: build
 	./$(BINARY)
 
 clean:
-	rm -f $(BINARY)
+	rm -f $(BINARY) *.txt
 
 test:
 	# ./$(BINARY) -hash-workers=1 -data-workers=1 -comp-workers=1 -input=tests/simple.txt
